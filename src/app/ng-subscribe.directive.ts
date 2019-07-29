@@ -33,7 +33,7 @@ export class SubscribeContext {
   selector: '[ngSubscribe]',
   exportAs: 'ngSubscribe',
 })
-export class SubscribeDirective implements OnInit, OnDestroy {
+export class NgSubscribeDirective implements OnInit, OnDestroy {
   private context: SubscribeContext = new SubscribeContext();
   private current$: Observable<any>;
   private subscription = new Subscription();
