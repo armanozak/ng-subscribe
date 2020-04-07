@@ -17,7 +17,7 @@ import { interval, of, from } from "rxjs";
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppComponent {
-  immediate$ = of("immediate");
+  immediate$ = of("Immediate");
 
   counter$ = interval(1000);
 
@@ -34,7 +34,7 @@ export class AppComponent {
   constructor(cdRef: ChangeDetectorRef) {
     setTimeout(() => {
       this.streams = {
-        immediate$: of("DONE"),
+        immediate$: of("Changed"),
         counter$: this.counter$,
         promise$: this.promise$
       };

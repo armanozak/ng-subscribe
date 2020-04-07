@@ -9,13 +9,16 @@ import {
 import { isObservable, Observable, Subscription } from "rxjs";
 import { SubscriptionService } from "./subscription.service";
 
+interface Context {
+  [key: string]: any;
+}
+
 interface Streams {
   [key: string]: Observable<any>;
 }
 
 export class SubscribeContext {
-  public $implicit: any = null;
-  public ngSubscribe: any = null;
+  public $implicit?: Context = null;
 }
 
 @Directive({
@@ -24,25 +27,38 @@ export class SubscribeContext {
   providers: [SubscriptionService]
 })
 export class NgSubscribeDirective implements OnInit {
-  private context: SubscribeContext = new SubscribeContext();
+  private context = new SubscribeContext();
+  private streams: Streams = {};
   private subscriptions = new Map<string, Subscription>();
 
-  get values() {
-    return this.context.ngSubscribe;
+  get value() {
+    return this.context.$implicit;
   }
 
   @Input()
-  set ngSubscribe(input: Observable<any> | Streams) {
-    const streams: Streams = isObservable(input) ? { $implicit: input } : input;
+  set ngSubscribe(streams: Observable<any> | Streams) {
+    if (!streams) {
+      this.clearContext([]);
+      this.clearStreams();
+      this.clearSubscriptions();
+      return;
+    }
 
-    Object.keys(streams).forEach(key => {
-      this.sub.unsubscribe(this.subscriptions.get(key));
+    if (isObservable(streams)) {
+      this.clearContext(["$implicit"]);
+      this.clearStreams();
+      this.clearSubscriptions();
+      this.resubscribeToStream("$implicit", streams, {});
+      return;
+    }
 
-      this.sub.subscribe(streams[key], (value: any) => {
-        this.context[key] = value;
-        this.context.ngSubscribe[key] = value;
-        this.cdRef.markForCheck();
-      });
+    const keys = Object.keys(streams);
+    this.clearContext(["$implicit", ...keys], true);
+    keys.forEach(key => {
+      if (streams[key] === this.streams[key]) return;
+
+      this.streams[key] = streams[key];
+      this.resubscribeToStream(key, streams[key], this.context.$implicit!);
     });
   }
 
@@ -51,8 +67,46 @@ export class NgSubscribeDirective implements OnInit {
     private cdRef: ChangeDetectorRef,
     private vcRef: ViewContainerRef,
     private tempRef: TemplateRef<any>
+  ) {}
+
+  private clearContext(keysToKeep: string[], resetImplicitContext?: boolean) {
+    Object.keys(this.context).forEach(key => {
+      if (keysToKeep.indexOf(key) < 0) this.context[key] = undefined;
+    });
+
+    if (resetImplicitContext) {
+      this.context.$implicit = {};
+      Object.keys(this.context.$implicit).forEach(key => {
+        if (keysToKeep.indexOf(key) < 0)
+          this.context.$implicit![key] = undefined;
+      });
+    }
+  }
+
+  private clearStreams() {
+    this.streams = {};
+  }
+
+  private clearSubscriptions() {
+    const unsubscribe = this.sub.unsubscribe.bind(this.sub);
+    this.subscriptions.forEach(unsubscribe);
+    this.subscriptions.clear();
+  }
+
+  private resubscribeToStream(
+    key: string,
+    stream: Observable<any>,
+    implicit: Context
   ) {
-    this.context.ngSubscribe = {};
+    this.sub.unsubscribe(this.subscriptions.get(key));
+
+    const subscription = this.sub.subscribe(stream, (value: any) => {
+      implicit[key] = value;
+      this.context[key] = value;
+      this.cdRef.markForCheck();
+    });
+
+    this.subscriptions.set(key, subscription);
   }
 
   ngOnInit() {

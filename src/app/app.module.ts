@@ -1,13 +1,13 @@
-import { NgModule } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
-import { FormsModule } from '@angular/forms';
+import { NgModule } from "@angular/core";
+import { BrowserModule } from "@angular/platform-browser";
+import { CommonModule } from "@angular/common";
 
-import { AppComponent } from './app.component';
-import { NgSubscribeDirective } from './ng-subscribe.directive';
+import { AppComponent } from "./app.component";
+import { NgSubscribeDirective } from "./ng-subscribe.directive";
 
 @NgModule({
-  imports:      [ BrowserModule, FormsModule ],
-  declarations: [ AppComponent, NgSubscribeDirective ],
-  bootstrap:    [ AppComponent ]
+  imports: [BrowserModule, CommonModule],
+  declarations: [AppComponent, NgSubscribeDirective],
+  bootstrap: [AppComponent]
 })
-export class AppModule { }
+export class AppModule {}
