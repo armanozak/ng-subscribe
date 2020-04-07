@@ -2,23 +2,12 @@ import {
   ChangeDetectorRef,
   Directive,
   Input,
-  OnDestroy,
   OnInit,
   TemplateRef,
-  ViewContainerRef,
-} from '@angular/core';
-import {
-  combineLatest,
-  isObservable,
-  Observable,
-  Subscription,
-} from 'rxjs';
-import {
-  map,
-  scan,
-  startWith,
-} from 'rxjs/operators';
-import compare from 'just-compare';
+  ViewContainerRef
+} from "@angular/core";
+import { isObservable, Observable, Subscription } from "rxjs";
+import { SubscriptionService } from "./subscription.service";
 
 interface Streams {
   [key: string]: Observable<any>;
@@ -30,61 +19,43 @@ export class SubscribeContext {
 }
 
 @Directive({
-  selector: '[ngSubscribe]',
-  exportAs: 'ngSubscribe',
+  selector: "[ngSubscribe]",
+  exportAs: "ngSubscribe",
+  providers: [SubscriptionService]
 })
-export class NgSubscribeDirective implements OnInit, OnDestroy {
+export class NgSubscribeDirective implements OnInit {
   private context: SubscribeContext = new SubscribeContext();
-  private current$: Observable<any>;
-  private subscription = new Subscription();
+  private subscriptions = new Map<string, Subscription>();
+
+  get values() {
+    return this.context.ngSubscribe;
+  }
 
   @Input()
   set ngSubscribe(input: Observable<any> | Streams) {
-    const current$ = isObservable(input)
-      ? input
-      : joinAll(input as Streams);
+    const streams: Streams = isObservable(input) ? { $implicit: input } : input;
 
-    if (compare(this.current$, current$))
-      return;
+    Object.keys(streams).forEach(key => {
+      this.sub.unsubscribe(this.subscriptions.get(key));
 
-    this.ngOnDestroy();
-  
-    this.current$ = current$;
-    
-    this.subscription = this.current$.subscribe(value => {
-      this.context.ngSubscribe = value;
-
-      if (!isObservable(value))
-        Object.keys(value).forEach(key => this.context[key] = value[key]);
-      
-      this.cdRef.markForCheck();
+      this.sub.subscribe(streams[key], (value: any) => {
+        this.context[key] = value;
+        this.context.ngSubscribe[key] = value;
+        this.cdRef.markForCheck();
+      });
     });
   }
 
   constructor(
+    private sub: SubscriptionService,
     private cdRef: ChangeDetectorRef,
     private vcRef: ViewContainerRef,
-    private tempRef: TemplateRef<any>,
-  ) {}
+    private tempRef: TemplateRef<any>
+  ) {
+    this.context.ngSubscribe = {};
+  }
 
   ngOnInit() {
     this.vcRef.createEmbeddedView(this.tempRef, this.context);
   }
-
-  ngOnDestroy(): void {
-    this.subscription.unsubscribe();
-  }
-}
-
-function joinAll(streams: Streams): Observable<any> {    
-  return combineLatest(
-    Object.keys(streams).map(
-      key => streams[key].pipe(
-        startWith(null),
-        scan((acc, val) => ({ ...acc, [key]: val }), {}),
-      ),
-    ),
-  ).pipe(
-    map(value => Object.assign({}, ...value)),
-  );
 }
