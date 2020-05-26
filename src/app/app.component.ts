@@ -8,7 +8,7 @@ import { interval, of, from } from "rxjs";
 @Component({
   selector: "my-app",
   template: `
-    <ul *ngSubscribe="streams; immediate$ as i; counter$ as c; promise$ as p">
+    <ul *ngSubscribe="streams; immediate as i; counter as c; promise as p">
       <li>{{ i }}</li>
       <li>{{ c }}</li>
       <li>{{ p }}</li>
@@ -25,21 +25,20 @@ export class AppComponent {
     new Promise(resolve => setTimeout(() => resolve("Resolved"), 3000))
   );
 
-  streams = {
-    immediate$: this.immediate$,
-    counter$: this.counter$,
-    promise$: this.promise$
-  };
+  get streams() {
+    console.warn("CHECKED");
+
+    return {
+      immediate: this.immediate$,
+      counter: this.counter$,
+      promise: this.promise$
+    };
+  }
 
   constructor(cdRef: ChangeDetectorRef) {
     setTimeout(() => {
-      this.streams = {
-        immediate$: of("Changed"),
-        counter$: this.counter$,
-        promise$: this.promise$
-      };
-
-      cdRef.detectChanges();
+      this.immediate$ = of("Changed");
+      cdRef.markForCheck();
     }, 5000);
   }
 }

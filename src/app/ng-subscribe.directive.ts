@@ -1,6 +1,7 @@
 import {
   ChangeDetectorRef,
   Directive,
+  EmbeddedViewRef,
   Input,
   OnInit,
   TemplateRef,
@@ -30,6 +31,7 @@ export class NgSubscribeDirective implements OnInit {
   private context = new SubscribeContext();
   private streams: Streams = {};
   private subscriptions = new Map<string, Subscription>();
+  private viewRef: EmbeddedViewRef<any>;
 
   get value() {
     return this.context.$implicit;
@@ -103,13 +105,17 @@ export class NgSubscribeDirective implements OnInit {
     const subscription = this.sub.subscribe(stream, (value: any) => {
       implicit[key] = value;
       this.context[key] = value;
-      this.cdRef.markForCheck();
+      this.viewRef ? this.viewRef.detectChanges() : void 0;
     });
 
     this.subscriptions.set(key, subscription);
   }
 
+  ngOnDestroy() {
+    if (this.viewRef) this.viewRef.destroy();
+  }
+
   ngOnInit() {
-    this.vcRef.createEmbeddedView(this.tempRef, this.context);
+    this.viewRef = this.vcRef.createEmbeddedView(this.tempRef, this.context);
   }
 }
